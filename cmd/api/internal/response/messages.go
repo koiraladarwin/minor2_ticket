@@ -3,6 +3,7 @@ package response
 const (
 	MsgInvalidRequestBody = "Invalid request body"
 	MsgInvalidEventID     = "Invalid event ID"
+	MsgInvalidUserID      = "Invalid user ID"
 
 	MsgUnauthorized   = "Unauthorized"
 	MsgInternalServer = "Internal server error"

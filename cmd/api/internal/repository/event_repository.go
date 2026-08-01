@@ -14,7 +14,7 @@ var ErrEventNotFound = errors.New("event not found")
 
 type EventRepository interface {
 	Create(ctx context.Context, event *models.Event) error
-	GetByID(ctx context.Context, id uuid.UUID) (*models.Event, error)
+	GetByIDAndUserID(ctx context.Context, id uuid.UUID, userId uuid.UUID) (*models.Event, error)
 	GetAll(ctx context.Context) ([]models.Event, error)
 	Update(ctx context.Context, event *models.Event) error
 	Delete(ctx context.Context, id uuid.UUID) error
@@ -75,7 +75,7 @@ func (r *eventRepository) Create(ctx context.Context, event *models.Event) error
 	)
 }
 
-func (r *eventRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Event, error) {
+func (r *eventRepository) GetByIDAndUserID(ctx context.Context, id uuid.UUID, userId uuid.UUID) (*models.Event, error) {
 	query := `
 	SELECT
 		id,
@@ -93,12 +93,13 @@ func (r *eventRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Ev
 		created_at,
 		updated_at
 	FROM events
-	WHERE id = $1;
+	WHERE id = $1
+	AND created_by = $2;
 	`
 
 	var event models.Event
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.db.QueryRowContext(ctx, query, id, userId).Scan(
 		&event.ID,
 		&event.Title,
 		&event.Description,

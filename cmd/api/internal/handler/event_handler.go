@@ -69,6 +69,15 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EventHandler) GetByID(w http.ResponseWriter, r *http.Request) {
+	userID, err := uuid.Parse(middleware.UserID(r.Context()))
+	if err != nil {
+		response.Error(
+			w,
+			http.StatusBadRequest,
+			response.MsgInvalidUserID,
+		)
+		return
+	}
 	id, err := uuid.Parse(mux.Vars(r)["id"])
 	if err != nil {
 		response.Error(
@@ -79,7 +88,7 @@ func (h *EventHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.service.GetByID(r.Context(), id)
+	event, err := h.service.GetByIDAndUserID(r.Context(), id, userID)
 	if err != nil {
 		if errors.Is(err, repository.ErrEventNotFound) {
 			response.Error(
@@ -127,6 +136,16 @@ func (h *EventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EventHandler) Update(w http.ResponseWriter, r *http.Request) {
+	userId, err := uuid.Parse(middleware.UserID(r.Context()))
+	if err != nil {
+		response.Error(
+			w,
+			http.StatusBadRequest,
+			response.MsgInvalidEventID,
+		)
+		return
+	}
+
 	id, err := uuid.Parse(mux.Vars(r)["id"])
 	if err != nil {
 		response.Error(
@@ -148,7 +167,7 @@ func (h *EventHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := h.service.GetByID(r.Context(), id)
+	event, err := h.service.GetByIDAndUserID(r.Context(), id, userId)
 	if err != nil {
 		if errors.Is(err, repository.ErrEventNotFound) {
 			response.Error(

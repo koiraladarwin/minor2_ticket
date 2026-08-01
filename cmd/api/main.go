@@ -38,7 +38,11 @@ func main() {
 	eventService := service.NewEventService(eventRepo)
 	eventHandler := handler.NewEventHandler(eventService)
 	r.HandleFunc("/events", eventHandler.GetAll).Methods(http.MethodGet)
-	r.HandleFunc("/events/{id}", eventHandler.GetByID).Methods(http.MethodGet)
+
+	r.Handle("/events/{id}",
+		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.GetByID)),
+	).Methods(http.MethodGet)
+
 	r.Handle("/events",
 		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.Create)),
 	).Methods(http.MethodPost)
