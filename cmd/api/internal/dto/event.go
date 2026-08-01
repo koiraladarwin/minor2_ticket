@@ -24,6 +24,7 @@ type UpdateEventRequest struct {
 	TicketSaleStartAt time.Time `json:"ticket_sale_start_at"`
 	TicketSaleEndAt   time.Time `json:"ticket_sale_end_at"`
 	Capacity          int       `json:"capacity"`
+	Status            string    `json:"status"`
 }
 
 type EventResponse struct {

@@ -32,6 +32,7 @@ func UpdateEvent(event *models.Event, req dto.UpdateEventRequest) {
 	event.TicketSaleStartAt = req.TicketSaleStartAt
 	event.TicketSaleEndAt = req.TicketSaleEndAt
 	event.Capacity = req.Capacity
+	event.Status = models.EventStatus(req.Status)
 }
 
 func ToEventResponse(event *models.Event) dto.EventResponse {

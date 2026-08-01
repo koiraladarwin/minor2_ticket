@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/config"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/database"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/handler"
@@ -29,29 +30,112 @@ func main() {
 
 	r := mux.NewRouter()
 
+	// Health
 	r.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("OK"))
 	}).Methods(http.MethodGet)
 
-	eventRepo := repository.NewEventRepository(db)
-	eventService := service.NewEventService(eventRepo)
-	eventHandler := handler.NewEventHandler(eventService)
-	r.HandleFunc("/events", eventHandler.GetAll).Methods(http.MethodGet)
+	// =====================================================
+	// Repositories
+	// =====================================================
 
-	r.Handle("/events/{id}",
+	eventRepo := repository.NewEventRepository(db)
+	ticketTypeRepo := repository.NewTicketTypeRepository(db)
+	ticketRepo := repository.NewTicketRepository(db)
+
+	// =====================================================
+	// Services
+	// =====================================================
+
+	eventService := service.NewEventService(eventRepo)
+	ticketTypeService := service.NewTicketTypeService(ticketTypeRepo)
+	ticketService := service.NewTicketService(ticketRepo)
+
+	// =====================================================
+	// Handlers
+	// =====================================================
+
+	eventHandler := handler.NewEventHandler(eventService)
+	ticketTypeHandler := handler.NewTicketTypeHandler(ticketTypeService)
+	ticketHandler := handler.NewTicketHandler(ticketService)
+
+	// =====================================================
+	// Event Routes
+	// =====================================================
+
+	r.HandleFunc(
+		"/events",
+		eventHandler.GetAll,
+	).Methods(http.MethodGet)
+
+	r.Handle(
+		"/events/{id}",
 		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.GetByID)),
 	).Methods(http.MethodGet)
 
-	r.Handle("/events",
+	r.Handle(
+		"/events",
 		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.Create)),
 	).Methods(http.MethodPost)
-	r.Handle("/events/{id}",
+
+	r.Handle(
+		"/events/{id}",
 		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.Update)),
 	).Methods(http.MethodPut)
-	r.Handle("/events/{id}",
+
+	r.Handle(
+		"/events/{id}",
 		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.Delete)),
 	).Methods(http.MethodDelete)
+
+	// =====================================================
+	// Ticket Type Routes
+	// =====================================================
+
+	r.Handle(
+		"/events/{eventId}/ticket-types",
+		authMiddleware.RequireAuth(http.HandlerFunc(ticketTypeHandler.Create)),
+	).Methods(http.MethodPost)
+
+	r.HandleFunc(
+		"/events/{eventId}/ticket-types",
+		ticketTypeHandler.GetByEventID,
+	).Methods(http.MethodGet)
+
+	r.Handle(
+		"/ticket-types/{id}",
+		authMiddleware.RequireAuth(http.HandlerFunc(ticketTypeHandler.GetByID)),
+	).Methods(http.MethodGet)
+
+	r.Handle(
+		"/ticket-types/{id}",
+		authMiddleware.RequireAuth(http.HandlerFunc(ticketTypeHandler.Update)),
+	).Methods(http.MethodPut)
+
+	r.Handle(
+		"/ticket-types/{id}",
+		authMiddleware.RequireAuth(http.HandlerFunc(ticketTypeHandler.Delete)),
+	).Methods(http.MethodDelete)
+
+	// =====================================================
+	// Ticket Routes
+	// =====================================================
+
+	r.Handle(
+		"/tickets/purchase",
+		authMiddleware.RequireAuth(http.HandlerFunc(ticketHandler.Purchase)),
+	).Methods(http.MethodPost)
+
+	r.Handle(
+		"/tickets/{id}",
+		authMiddleware.RequireAuth(http.HandlerFunc(ticketHandler.GetByID)),
+	).Methods(http.MethodGet)
+
+	r.Handle(
+		"/me/tickets",
+		authMiddleware.RequireAuth(http.HandlerFunc(ticketHandler.GetMyTickets)),
+	).Methods(http.MethodGet)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Port,
