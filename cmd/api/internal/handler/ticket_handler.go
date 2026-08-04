@@ -173,7 +173,7 @@ func (h *TicketHandler) GetByID(
 		w,
 		http.StatusOK,
 		response.MsgTicketFetched,
-		mapper.ToTicketResponse(ticket),
+		mapper.ToTicketDetailResponse(*ticket),
 	)
 }
 
@@ -209,6 +209,6 @@ func (h *TicketHandler) GetMyTickets(
 		w,
 		http.StatusOK,
 		response.MsgTicketsFetched,
-		mapper.ToTicketResponses(tickets),
+		mapper.ToTicketDetailResponseList(tickets),
 	)
 }

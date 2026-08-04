@@ -37,7 +37,7 @@ func (s *ticketService) GetByIDAndUserID(
 	ctx context.Context,
 	id uuid.UUID,
 	userID uuid.UUID,
-) (*models.Ticket, error) {
+) (*models.TicketDetail, error) {
 	return s.repo.GetByIDAndUserID(
 		ctx,
 		id,
@@ -48,7 +48,7 @@ func (s *ticketService) GetByIDAndUserID(
 func (s *ticketService) GetByUserID(
 	ctx context.Context,
 	userID uuid.UUID,
-) ([]models.Ticket, error) {
+) ([]models.TicketDetail, error) {
 	return s.repo.GetByUserID(
 		ctx,
 		userID,

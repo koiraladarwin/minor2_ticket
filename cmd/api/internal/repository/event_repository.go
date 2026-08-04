@@ -163,7 +163,7 @@ func (r *eventRepository) GetEventDetails(
 	ON e.id = tt.event_id
 
 	WHERE e.id = $1
-	AND created_by = $2;
+	AND e.created_by = $2;
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, id, userId)
@@ -179,7 +179,16 @@ func (r *eventRepository) GetEventDetails(
 
 	for rows.Next() {
 
-		var ticket models.TicketType
+		var (
+			ticketID          sql.NullString
+			ticketName        sql.NullString
+			ticketDescription sql.NullString
+			ticketPrice       sql.NullFloat64
+			ticketQuantity    sql.NullInt64
+			ticketRemaining   sql.NullInt64
+			ticketCreatedAt   sql.NullTime
+			ticketUpdatedAt   sql.NullTime
+		)
 
 		err := rows.Scan(
 			&event.ID,
@@ -195,14 +204,14 @@ func (r *eventRepository) GetEventDetails(
 			&event.Status,
 			&event.CreatedBy,
 
-			&ticket.ID,
-			&ticket.Name,
-			&ticket.Description,
-			&ticket.Price,
-			&ticket.Quantity,
-			&ticket.Remaining,
-			&ticket.CreatedAt,
-			&ticket.UpdatedAt,
+			&ticketID,
+			&ticketName,
+			&ticketDescription,
+			&ticketPrice,
+			&ticketQuantity,
+			&ticketRemaining,
+			&ticketCreatedAt,
+			&ticketUpdatedAt,
 		)
 
 		if err != nil {
@@ -211,8 +220,31 @@ func (r *eventRepository) GetEventDetails(
 
 		found = true
 
-		// because LEFT JOIN can return null ticket
-		if ticket.ID != uuid.Nil {
+		// Only append ticket if LEFT JOIN actually found one
+		if ticketID.Valid {
+
+			ticketUUID, err := uuid.Parse(ticketID.String)
+
+			if err != nil {
+				return nil, err
+			}
+
+			ticket := models.TicketType{
+				ID:        ticketUUID,
+				Name:      ticketName.String,
+				Price:     ticketPrice.Float64,
+				Quantity:  int(ticketQuantity.Int64),
+				Remaining: int(ticketRemaining.Int64),
+			}
+
+			if ticketCreatedAt.Valid {
+				ticket.CreatedAt = ticketCreatedAt.Time
+			}
+
+			if ticketUpdatedAt.Valid {
+				ticket.UpdatedAt = ticketUpdatedAt.Time
+			}
+
 			event.TicketTypes = append(
 				event.TicketTypes,
 				ticket,

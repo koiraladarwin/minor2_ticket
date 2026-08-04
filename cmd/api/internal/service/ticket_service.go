@@ -22,11 +22,11 @@ type TicketService interface {
 		ctx context.Context,
 		id uuid.UUID,
 		userID uuid.UUID,
-	) (*models.Ticket, error)
+	) (*models.TicketDetail, error)
 
 	// Get all tickets owned by user
 	GetByUserID(
 		ctx context.Context,
 		userID uuid.UUID,
-	) ([]models.Ticket, error)
+	) ([]models.TicketDetail, error)
 }

@@ -21,12 +21,12 @@ type TicketRepository interface {
 	GetByUserID(
 		ctx context.Context,
 		userID uuid.UUID,
-	) ([]models.Ticket, error)
+	) ([]models.TicketDetail, error)
 
 	// Single ticket
 	GetByIDAndUserID(
 		ctx context.Context,
 		id uuid.UUID,
 		userID uuid.UUID,
-	) (*models.Ticket, error)
+	) (*models.TicketDetail, error)
 }
