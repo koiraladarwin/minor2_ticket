@@ -75,6 +75,11 @@ func main() {
 	).Methods(http.MethodGet)
 
 	r.Handle(
+		"/eventdetails/{id}",
+		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.GetEventDetails)),
+	).Methods(http.MethodGet)
+
+	r.Handle(
 		"/events",
 		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.Create)),
 	).Methods(http.MethodPost)
@@ -97,7 +102,6 @@ func main() {
 		"/events/{eventId}/ticket-types",
 		authMiddleware.RequireAuth(http.HandlerFunc(ticketTypeHandler.Create)),
 	).Methods(http.MethodPost)
-
 	r.HandleFunc(
 		"/events/{eventId}/ticket-types",
 		ticketTypeHandler.GetByEventID,

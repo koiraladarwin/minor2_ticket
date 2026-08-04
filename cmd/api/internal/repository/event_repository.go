@@ -16,6 +16,7 @@ type EventRepository interface {
 	Create(ctx context.Context, event *models.Event) error
 	GetByIDAndUserID(ctx context.Context, id uuid.UUID, userId uuid.UUID) (*models.Event, error)
 	GetAll(ctx context.Context) ([]models.Event, error)
+	GetEventDetails(ctx context.Context, id uuid.UUID, userId uuid.UUID) (*models.EventDetails, error)
 	Update(ctx context.Context, event *models.Event) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -127,6 +128,108 @@ func (r *eventRepository) GetByIDAndUserID(ctx context.Context, id uuid.UUID, us
 	return &event, nil
 }
 
+func (r *eventRepository) GetEventDetails(
+	ctx context.Context,
+	id uuid.UUID,
+	userId uuid.UUID,
+) (*models.EventDetails, error) {
+
+	query := `
+	SELECT
+		e.id,
+		e.title,
+		e.description,
+		e.venue,
+		e.banner_url,
+		e.event_start_at,
+		e.event_end_at,
+		e.ticket_sale_start_at,
+		e.ticket_sale_end_at,
+		e.capacity,
+		e.status,
+		e.created_by,
+
+		tt.id,
+		tt.name,
+		tt.description,
+		tt.price,
+		tt.quantity,
+		tt.remaining,
+		tt.created_at,
+		tt.updated_at
+
+	FROM events e
+	LEFT JOIN ticket_types tt
+	ON e.id = tt.event_id
+
+	WHERE e.id = $1
+	AND created_by = $2;
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, id, userId)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var event models.EventDetails
+	var found bool
+
+	for rows.Next() {
+
+		var ticket models.TicketType
+
+		err := rows.Scan(
+			&event.ID,
+			&event.Title,
+			&event.Description,
+			&event.Venue,
+			&event.BannerURL,
+			&event.EventStartAt,
+			&event.EventEndAt,
+			&event.TicketSaleStartAt,
+			&event.TicketSaleEndAt,
+			&event.Capacity,
+			&event.Status,
+			&event.CreatedBy,
+
+			&ticket.ID,
+			&ticket.Name,
+			&ticket.Description,
+			&ticket.Price,
+			&ticket.Quantity,
+			&ticket.Remaining,
+			&ticket.CreatedAt,
+			&ticket.UpdatedAt,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		found = true
+
+		// because LEFT JOIN can return null ticket
+		if ticket.ID != uuid.Nil {
+			event.TicketTypes = append(
+				event.TicketTypes,
+				ticket,
+			)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if !found {
+		return nil, ErrEventNotFound
+	}
+
+	return &event, nil
+}
 func (r *eventRepository) GetAll(ctx context.Context) ([]models.Event, error) {
 	query := `
 	SELECT

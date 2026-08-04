@@ -60,3 +60,44 @@ func ToEventResponses(events []models.Event) []dto.EventResponse {
 
 	return response
 }
+
+func ToEventDetailsResponse(
+	event *models.EventDetails,
+) dto.EventDetailsResponse {
+
+	ticketTypes := make(
+		[]dto.TicketTypeResponse,
+		0,
+		len(event.TicketTypes),
+	)
+
+	for _, ticket := range event.TicketTypes {
+
+		ticketTypes = append(
+			ticketTypes,
+			ToTicketTypeResponse(&ticket),
+		)
+
+	}
+
+	return dto.EventDetailsResponse{
+
+		ID: event.ID.String(),
+
+		Title:       event.Title,
+		Description: event.Description,
+		Venue:       event.Venue,
+		BannerURL:   event.BannerURL,
+
+		TicketSaleStartAt: event.TicketSaleStartAt,
+		TicketSaleEndAt:   event.TicketSaleEndAt,
+
+		Capacity: event.Capacity,
+
+		Status: event.Status,
+
+		CreatedBy: event.CreatedBy.String(),
+
+		TicketTypes: ticketTypes,
+	}
+}

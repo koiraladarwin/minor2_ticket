@@ -19,6 +19,7 @@ var (
 
 type EventService interface {
 	Create(ctx context.Context, event *models.Event) error
+	GetEventDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.EventDetails, error)
 	GetByIDAndUserID(ctx context.Context, id uuid.UUID, userId uuid.UUID) (*models.Event, error)
 	GetAll(ctx context.Context) ([]models.Event, error)
 	Update(ctx context.Context, event *models.Event) error
@@ -98,6 +99,11 @@ func (s *eventService) Update(
 	}
 
 	return s.repo.Update(ctx, event)
+}
+
+func (s *eventService) GetEventDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.EventDetails, error) {
+	return s.repo.GetEventDetails(ctx, id, userID)
+
 }
 
 func (s *eventService) Delete(

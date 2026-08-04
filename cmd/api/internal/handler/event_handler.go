@@ -115,6 +115,71 @@ func (h *EventHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+func (h *EventHandler) GetEventDetails(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	userID, err := uuid.Parse(middleware.UserID(r.Context()))
+	log.Print(userID)
+	if err != nil {
+		response.Error(
+			w,
+			http.StatusBadRequest,
+			response.MsgInvalidUserID,
+		)
+		return
+	}
+	eventID, err := uuid.Parse(
+		mux.Vars(r)["id"],
+	)
+
+	if err != nil {
+		response.Error(
+			w,
+			http.StatusBadRequest,
+			"invalid event id",
+		)
+		return
+	}
+
+	event, err := h.service.GetEventDetails(
+		r.Context(),
+		eventID,
+		userID,
+	)
+
+	if err != nil {
+
+		if errors.Is(err, repository.ErrEventNotFound) {
+
+			response.Error(
+				w,
+				http.StatusNotFound,
+				"event not found",
+			)
+
+			return
+		}
+
+		log.Println(err)
+
+		response.Error(
+			w,
+			http.StatusInternalServerError,
+			response.MsgInternalServer,
+		)
+
+		return
+	}
+
+	response.Success(
+		w,
+		http.StatusOK,
+		"event details fetched successfully",
+		mapper.ToEventDetailsResponse(event),
+	)
+}
+
 func (h *EventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	events, err := h.service.GetAll(r.Context())
 	if err != nil {

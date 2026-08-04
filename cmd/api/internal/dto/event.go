@@ -40,3 +40,24 @@ type EventResponse struct {
 	Capacity          int       `json:"capacity"`
 	Status            string    `json:"status"`
 }
+
+type EventDetailsResponse struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Description *string `json:"description"`
+	Venue       string  `json:"venue"`
+	BannerURL   *string `json:"banner_url"`
+
+	EventStartAt time.Time `json:"event_start_at"`
+	EventEndAt   time.Time `json:"event_end_at"`
+
+	TicketSaleStartAt time.Time `json:"ticket_sale_start_at"`
+	TicketSaleEndAt   time.Time `json:"ticket_sale_end_at"`
+
+	Capacity int    `json:"capacity"`
+	Status   string `json:"status"`
+
+	CreatedBy string `json:"created_by"`
+
+	TicketTypes []TicketTypeResponse `json:"ticket_types"`
+}
