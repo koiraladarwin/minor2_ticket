@@ -36,37 +36,29 @@ func main() {
 		_, _ = w.Write([]byte("OK"))
 	}).Methods(http.MethodGet)
 
-	// =====================================================
 	// Repositories
-	// =====================================================
 
 	eventRepo := repository.NewEventRepository(db)
 	ticketTypeRepo := repository.NewTicketTypeRepository(db)
 	ticketRepo := repository.NewTicketRepository(db)
 
-	// =====================================================
 	// Services
-	// =====================================================
 
 	eventService := service.NewEventService(eventRepo)
 	ticketTypeService := service.NewTicketTypeService(ticketTypeRepo)
 	ticketService := service.NewTicketService(ticketRepo)
 
-	// =====================================================
 	// Handlers
-	// =====================================================
 
 	eventHandler := handler.NewEventHandler(eventService)
 	ticketTypeHandler := handler.NewTicketTypeHandler(ticketTypeService)
 	ticketHandler := handler.NewTicketHandler(ticketService)
 
-	// =====================================================
 	// Event Routes
-	// =====================================================
 
-	r.HandleFunc(
+	r.Handle(
 		"/events",
-		eventHandler.GetAll,
+		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.GetAll)),
 	).Methods(http.MethodGet)
 
 	r.Handle(
@@ -94,9 +86,7 @@ func main() {
 		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.Delete)),
 	).Methods(http.MethodDelete)
 
-	// =====================================================
 	// Ticket Type Routes
-	// =====================================================
 
 	r.Handle(
 		"/events/{eventId}/ticket-types",
@@ -122,9 +112,7 @@ func main() {
 		authMiddleware.RequireAuth(http.HandlerFunc(ticketTypeHandler.Delete)),
 	).Methods(http.MethodDelete)
 
-	// =====================================================
 	// Ticket Routes
-	// =====================================================
 
 	r.Handle(
 		"/tickets/purchase",
