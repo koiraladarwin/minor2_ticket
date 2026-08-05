@@ -9,6 +9,7 @@ import (
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/config"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/database"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/handler"
+	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/kafka"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/middleware"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/repository"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/service"
@@ -22,6 +23,7 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+	kafka := kafka.NewProducer()
 
 	authMiddleware, err := middleware.NewAuthMiddleware(cfg.PublicKeyPath)
 	if err != nil {
@@ -37,19 +39,16 @@ func main() {
 	}).Methods(http.MethodGet)
 
 	// Repositories
-
 	eventRepo := repository.NewEventRepository(db)
-	ticketTypeRepo := repository.NewTicketTypeRepository(db)
+	ticketTypeRepo := repository.NewTicketTypeRepository(db, kafka)
 	ticketRepo := repository.NewTicketRepository(db)
 
 	// Services
-
 	eventService := service.NewEventService(eventRepo)
 	ticketTypeService := service.NewTicketTypeService(ticketTypeRepo)
-	ticketService := service.NewTicketService(ticketRepo)
+	ticketService := service.NewTicketService(ticketRepo, kafka)
 
 	// Handlers
-
 	eventHandler := handler.NewEventHandler(eventService)
 	ticketTypeHandler := handler.NewTicketTypeHandler(ticketTypeService)
 	ticketHandler := handler.NewTicketHandler(ticketService)

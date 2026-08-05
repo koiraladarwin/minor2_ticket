@@ -55,7 +55,8 @@ type TicketDetail struct {
 		StartAt time.Time `json:"start_at"`
 		EndAt   time.Time `json:"end_at"`
 
-		Status string `json:"status"`
+		Status    string    `json:"status"`
+		CreatedBy uuid.UUID `json:"created_by"`
 	} `json:"event"`
 
 	TicketType struct {

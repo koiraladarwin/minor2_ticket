@@ -116,7 +116,7 @@ func (h *TicketHandler) Purchase(
 		w,
 		http.StatusCreated,
 		"Ticket purchased successfully",
-		mapper.ToTicketResponse(ticket),
+		mapper.ToTicketDetailResponse(*ticket),
 	)
 }
 

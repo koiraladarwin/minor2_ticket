@@ -15,7 +15,7 @@ type TicketRepository interface {
 		ctx context.Context,
 		ticketTypeID uuid.UUID,
 		userID uuid.UUID,
-	) (*models.Ticket, error)
+	) (*models.TicketDetail, error)
 
 	// User tickets
 	GetByUserID(

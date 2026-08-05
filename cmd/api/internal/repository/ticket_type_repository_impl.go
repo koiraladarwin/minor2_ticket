@@ -7,18 +7,21 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/kafka"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/models"
 )
 
 var ErrTicketTypeNotFound = errors.New("ticket type not found")
 
 type ticketTypeRepository struct {
-	db *sql.DB
+	db    *sql.DB
+	kafka *kafka.Producer
 }
 
-func NewTicketTypeRepository(db *sql.DB) TicketTypeRepository {
+func NewTicketTypeRepository(db *sql.DB, kakfa *kafka.Producer) TicketTypeRepository {
 	return &ticketTypeRepository{
-		db: db,
+		db:    db,
+		kafka: kakfa,
 	}
 }
 

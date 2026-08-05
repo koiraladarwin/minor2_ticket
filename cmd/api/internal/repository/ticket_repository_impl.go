@@ -34,7 +34,7 @@ func (r *ticketRepository) Purchase(
 	ctx context.Context,
 	ticketTypeID uuid.UUID,
 	userID uuid.UUID,
-) (*models.Ticket, error) {
+) (*models.TicketDetail, error) {
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -45,40 +45,35 @@ func (r *ticketRepository) Purchase(
 		_ = tx.Rollback()
 	}()
 
-	type purchaseInfo struct {
-		EventID   uuid.UUID
-		Remaining int
-		Status    string
-		SaleStart time.Time
-		SaleEnd   time.Time
-	}
+	var eventID uuid.UUID
+	var remaining int
+	var eventStatus string
+	var saleStart time.Time
+	var saleEnd time.Time
 
-	var info purchaseInfo
-
-	query := `
-	SELECT
-		tt.event_id,
-		tt.remaining,
-		e.status,
-		e.ticket_sale_start_at,
-		e.ticket_sale_end_at
-	FROM ticket_types tt
-	INNER JOIN events e
-		ON e.id = tt.event_id
-	WHERE tt.id = $1
-	FOR UPDATE;
-	`
-
+	// Lock ticket type row to prevent overselling
 	err = tx.QueryRowContext(
 		ctx,
-		query,
+		`
+		SELECT
+			tt.event_id,
+			tt.remaining,
+			e.status,
+			e.ticket_sale_start_at,
+			e.ticket_sale_end_at
+		FROM ticket_types tt
+		JOIN events e
+			ON e.id = tt.event_id
+		WHERE tt.id = $1
+		FOR UPDATE;
+		`,
 		ticketTypeID,
 	).Scan(
-		&info.EventID,
-		&info.Remaining,
-		&info.Status,
-		&info.SaleStart,
-		&info.SaleEnd,
+		&eventID,
+		&remaining,
+		&eventStatus,
+		&saleStart,
+		&saleEnd,
 	)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -91,14 +86,15 @@ func (r *ticketRepository) Purchase(
 
 	now := time.Now()
 
-	if now.Before(info.SaleStart) || now.After(info.SaleEnd) {
+	if now.Before(saleStart) || now.After(saleEnd) {
 		return nil, ErrTicketSalesClosed
 	}
 
-	if info.Remaining <= 0 {
+	if remaining <= 0 {
 		return nil, ErrTicketSoldOut
 	}
 
+	// Check duplicate purchase
 	var exists bool
 
 	err = tx.QueryRowContext(
@@ -111,7 +107,7 @@ func (r *ticketRepository) Purchase(
 			AND user_id = $2
 		);
 		`,
-		info.EventID,
+		eventID,
 		userID,
 	).Scan(&exists)
 
@@ -123,6 +119,7 @@ func (r *ticketRepository) Purchase(
 		return nil, ErrAlreadyPurchased
 	}
 
+	// Decrease remaining ticket count
 	_, err = tx.ExecContext(
 		ctx,
 		`
@@ -138,65 +135,131 @@ func (r *ticketRepository) Purchase(
 	if err != nil {
 		return nil, err
 	}
-	ticket := &models.Ticket{
-		EventID:      info.EventID,
-		TicketTypeID: ticketTypeID,
-		UserID:       userID,
 
-		// Simple unique values for now.
-		// These can be replaced later with a nicer format.
-		TicketNumber: fmt.Sprintf("TKT-%d", time.Now().UnixNano()),
-		QRCode:       uuid.New().String(),
-
-		Status: models.TicketActive,
-	}
-
-	insertQuery := `
-	INSERT INTO tickets (
-		event_id,
-		ticket_type_id,
-		user_id,
-		ticket_number,
-		qr_code,
-		status
+	ticketNumber := fmt.Sprintf(
+		"TKT-%d",
+		time.Now().UnixNano(),
 	)
-	VALUES (
-		$1,$2,$3,$4,$5,$6
-	)
-	RETURNING
-		id,
-		purchased_at,
-		created_at,
-		updated_at;
-	`
 
+	qrCode := uuid.New().String()
+
+	var ticketID uuid.UUID
+
+	// Create ticket
 	err = tx.QueryRowContext(
 		ctx,
-		insertQuery,
-		ticket.EventID,
-		ticket.TicketTypeID,
-		ticket.UserID,
-		ticket.TicketNumber,
-		ticket.QRCode,
-		ticket.Status,
+		`
+		INSERT INTO tickets(
+			event_id,
+			ticket_type_id,
+			user_id,
+			ticket_number,
+			qr_code,
+			status
+		)
+		VALUES(
+			$1,$2,$3,$4,$5,$6
+		)
+		RETURNING id;
+		`,
+		eventID,
+		ticketTypeID,
+		userID,
+		ticketNumber,
+		qrCode,
+		models.TicketActive,
 	).Scan(
-		&ticket.ID,
-		&ticket.PurchasedAt,
-		&ticket.CreatedAt,
-		&ticket.UpdatedAt,
+		&ticketID,
 	)
 
 	if err != nil {
 		return nil, err
 	}
 
+	// Commit purchase transaction
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 
-	return ticket, nil
-}
+	// Fetch complete ticket details
+	var ticket models.TicketDetail
 
+	err = r.db.QueryRowContext(
+		ctx,
+		`
+		SELECT
+			-- ticket
+			t.id,
+			t.ticket_number,
+			t.qr_code,
+			t.status,
+			t.purchased_at,
+			t.checked_in_at,
+			t.user_id,
+
+			-- event
+			e.id,
+			e.title,
+			e.description,
+			e.venue,
+			e.banner_url,
+			e.event_start_at,
+			e.event_end_at,
+			e.status,
+			e.created_by,
+
+			-- ticket type
+			tt.id,
+			tt.name,
+			tt.description,
+			tt.price
+
+		FROM tickets t
+
+		JOIN events e
+			ON e.id = t.event_id
+
+		JOIN ticket_types tt
+			ON tt.id = t.ticket_type_id
+
+		WHERE t.id = $1;
+		`,
+		ticketID,
+	).Scan(
+
+		// ticket
+		&ticket.ID,
+		&ticket.TicketNumber,
+		&ticket.QRCode,
+		&ticket.Status,
+		&ticket.PurchasedAt,
+		&ticket.CheckedInAt,
+		&ticket.UserID,
+
+		// event
+		&ticket.Event.ID,
+		&ticket.Event.Title,
+		&ticket.Event.Description,
+		&ticket.Event.Venue,
+		&ticket.Event.BannerURL,
+		&ticket.Event.StartAt,
+		&ticket.Event.EndAt,
+		&ticket.Event.Status,
+		&ticket.Event.CreatedBy,
+
+		// ticket type
+		&ticket.TicketType.ID,
+		&ticket.TicketType.Name,
+		&ticket.TicketType.Description,
+		&ticket.TicketType.Price,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &ticket, nil
+}
 func (r *ticketRepository) GetByUserID(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -222,6 +285,7 @@ func (r *ticketRepository) GetByUserID(
 		e.event_start_at,
 		e.event_end_at,
 		e.status,
+		e.created_by,
 
 		-- ticket type
 		tt.id,
@@ -277,6 +341,7 @@ func (r *ticketRepository) GetByUserID(
 			&ticket.Event.StartAt,
 			&ticket.Event.EndAt,
 			&ticket.Event.Status,
+			&ticket.Event.CreatedBy,
 
 			// ticket type
 			&ticket.TicketType.ID,
@@ -324,6 +389,7 @@ func (r *ticketRepository) GetByIDAndUserID(
 		e.event_start_at,
 		e.event_end_at,
 		e.status,
+		e.created_by,
 
 		-- ticket type
 		tt.id,
@@ -369,6 +435,7 @@ func (r *ticketRepository) GetByIDAndUserID(
 		&ticket.Event.StartAt,
 		&ticket.Event.EndAt,
 		&ticket.Event.Status,
+		&ticket.Event.CreatedBy,
 
 		// ticket type
 		&ticket.TicketType.ID,
