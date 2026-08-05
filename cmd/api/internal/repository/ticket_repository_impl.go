@@ -372,6 +372,94 @@ func (r *ticketRepository) GetByUserID(
 
 	return tickets, nil
 }
+func (r *ticketRepository) GetByID(
+	ctx context.Context,
+	id uuid.UUID,
+) (*models.TicketDetail, error) {
+
+	query := `
+	SELECT
+		-- ticket
+		t.id,
+		t.ticket_number,
+		t.qr_code,
+		t.status,
+		t.purchased_at,
+		t.checked_in_at,
+		t.user_id,
+
+		-- event
+		e.id,
+		e.title,
+		e.description,
+		e.venue,
+		e.banner_url,
+		e.event_start_at,
+		e.event_end_at,
+		e.status,
+		e.created_by,
+
+		-- ticket type
+		tt.id,
+		tt.name,
+		tt.description,
+		tt.price
+
+	FROM tickets t
+
+	JOIN events e
+		ON e.id = t.event_id
+
+	JOIN ticket_types tt
+		ON tt.id = t.ticket_type_id
+
+	WHERE t.id = $1;
+	`
+
+	var ticket models.TicketDetail
+
+	err := r.db.QueryRowContext(
+		ctx,
+		query,
+		id,
+	).Scan(
+		// ticket
+		&ticket.ID,
+		&ticket.TicketNumber,
+		&ticket.QRCode,
+		&ticket.Status,
+		&ticket.PurchasedAt,
+		&ticket.CheckedInAt,
+		&ticket.UserID,
+
+		// event
+		&ticket.Event.ID,
+		&ticket.Event.Title,
+		&ticket.Event.Description,
+		&ticket.Event.Venue,
+		&ticket.Event.BannerURL,
+		&ticket.Event.StartAt,
+		&ticket.Event.EndAt,
+		&ticket.Event.Status,
+		&ticket.Event.CreatedBy,
+
+		// ticket type
+		&ticket.TicketType.ID,
+		&ticket.TicketType.Name,
+		&ticket.TicketType.Description,
+		&ticket.TicketType.Price,
+	)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrTicketNotFound
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &ticket, nil
+}
 func (r *ticketRepository) GetByIDAndUserID(
 	ctx context.Context,
 	id uuid.UUID,

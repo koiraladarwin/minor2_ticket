@@ -2,27 +2,42 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 
+	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/dto"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/kafka"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/models"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/repository"
+	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/utils"
+)
+
+var (
+	ErrInvalidQR              = errors.New("invalid qr")
+	ErrQRExpired              = errors.New("qr expired")
+	ErrInvalidTicketSignature = errors.New("invalid ticket signature")
 )
 
 type ticketService struct {
 	repo  repository.TicketRepository
+	redis *redis.Client
 	kafka *kafka.Producer
 }
 
 func NewTicketService(
 	repo repository.TicketRepository,
 	kafka *kafka.Producer,
+	redis *redis.Client,
 ) TicketService {
 	return &ticketService{
 		repo:  repo,
 		kafka: kafka,
+		redis: redis,
 	}
 }
 
@@ -93,20 +108,85 @@ func (s *ticketService) publishTicketBought(
 	)
 
 }
-
 func (s *ticketService) ScanTicket(
 	ctx context.Context,
 	ticketID string,
+	expTime int64,
+	signature string,
 	scannedBy string,
 ) error {
-	err := s.repo.ScanTicket(ctx, ticketID, scannedBy)
+
+	if time.Now().Unix() > expTime {
+
+		return ErrQRExpired
+
+	}
+
+	cacheKey := "ticket:" + ticketID
+
+	data, err := s.redis.Get(
+		ctx,
+		cacheKey,
+	).Result()
+
 	if err != nil {
+
+		return repository.ErrTicketNotFound
+
+	}
+
+	var ticketCache dto.TicketCache
+
+	err = json.Unmarshal(
+		[]byte(data),
+		&ticketCache,
+	)
+
+	if err != nil {
+
 		return err
+
+	}
+
+	valid := utils.VerifyHMAC(
+		ticketID,
+		expTime,
+		signature,
+		ticketCache.QrCode,
+	)
+
+	if !valid {
+
+		return ErrInvalidTicketSignature
+
+	}
+
+	ticket, err := s.repo.GetByID(
+		ctx,
+		uuid.MustParse(ticketID),
+	)
+
+	if err != nil {
+
+		return err
+
+	}
+
+	err = s.repo.ScanTicket(
+		ctx,
+		ticketID,
+		scannedBy,
+	)
+
+	if err != nil {
+
+		return err
+
 	}
 
 	event := kafka.NewTicketCheckedInEvent(
 		ticketID,
-		ticketID,
+		ticket.Event.ID.String(),
 		scannedBy,
 	)
 

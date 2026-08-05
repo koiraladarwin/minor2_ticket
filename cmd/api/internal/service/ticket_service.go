@@ -34,6 +34,8 @@ type TicketService interface {
 	ScanTicket(
 		ctx context.Context,
 		ticketID string,
+		expTime int64,
+		signature string,
 		scannedBy string,
 	) error
 }

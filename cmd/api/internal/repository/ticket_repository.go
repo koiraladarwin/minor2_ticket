@@ -30,6 +30,12 @@ type TicketRepository interface {
 		userID uuid.UUID,
 	) (*models.TicketDetail, error)
 
+	// Single ticket
+	GetByID(
+		ctx context.Context,
+		id uuid.UUID,
+	) (*models.TicketDetail, error)
+
 	//ScanTicket
 	ScanTicket(
 		ctx context.Context,

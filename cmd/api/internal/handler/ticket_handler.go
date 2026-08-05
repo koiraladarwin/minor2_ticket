@@ -221,69 +221,68 @@ func (h *TicketHandler) ScanTicket(
 
 	var req dto.ScanTicketRequest
 
-	log.Println("Decoding request body")
-
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 
-		log.Println("Failed to decode request body:", err)
+		log.Println("Failed to decode request:", err)
 
 		response.Error(
 			w,
 			http.StatusBadRequest,
 			response.MsgInvalidRequestBody,
 		)
+
 		return
 	}
 
-	log.Println("Request decoded successfully")
-	log.Println("Ticket ID received:", req.TicketID)
-
-	if req.TicketID == "" {
-
-		log.Println("Ticket ID is empty")
+	if req.TicketID == "" ||
+		req.ExpTime == 0 ||
+		req.HMAC == "" {
 
 		response.Error(
 			w,
 			http.StatusBadRequest,
-			response.MsgInvalidTicketID,
+			response.MsgInvalidRequestBody,
 		)
+
 		return
 	}
 
-	log.Println("Getting scanner user from context")
-
-	scannedBy := middleware.UserID(r.Context())
+	scannedBy := middleware.UserID(
+		r.Context(),
+	)
 
 	if scannedBy == "" {
-
-		log.Println("Scanner user ID missing from context")
 
 		response.Error(
 			w,
 			http.StatusUnauthorized,
 			response.MsgUnauthorized,
 		)
+
 		return
 	}
-
-	log.Println("Scanner ID:", scannedBy)
-	log.Println("Calling service ScanTicket")
 
 	err := h.service.ScanTicket(
 		r.Context(),
 		req.TicketID,
+		req.ExpTime,
+		req.HMAC,
 		scannedBy,
 	)
 
 	if err != nil {
 
-		log.Println("ScanTicket service returned error:", err)
+		log.Println(
+			"Scan ticket failed:",
+			err,
+		)
 
 		switch {
 
-		case errors.Is(err, repository.ErrTicketNotFound):
-
-			log.Println("Ticket not found")
+		case errors.Is(
+			err,
+			repository.ErrTicketNotFound,
+		):
 
 			response.Error(
 				w,
@@ -291,9 +290,10 @@ func (h *TicketHandler) ScanTicket(
 				response.MsgTicketNotFound,
 			)
 
-		case errors.Is(err, repository.ErrTicketAlreadyUsed):
-
-			log.Println("Ticket already used")
+		case errors.Is(
+			err,
+			repository.ErrTicketAlreadyUsed,
+		):
 
 			response.Error(
 				w,
@@ -301,21 +301,51 @@ func (h *TicketHandler) ScanTicket(
 				err.Error(),
 			)
 
-		default:
+		case errors.Is(
+			err,
+			service.ErrInvalidQR,
+		):
 
-			log.Println("Internal error:", err)
+			response.Error(
+				w,
+				http.StatusUnauthorized,
+				"Invalid QR code",
+			)
+
+		case errors.Is(
+			err,
+			service.ErrQRExpired,
+		):
+
+			response.Error(
+				w,
+				http.StatusUnauthorized,
+				"QR expired",
+			)
+
+		case errors.Is(
+			err,
+			service.ErrInvalidTicketSignature,
+		):
+
+			response.Error(
+				w,
+				http.StatusUnauthorized,
+				"Invalid QR signature",
+			)
+
+		default:
 
 			response.Error(
 				w,
 				http.StatusInternalServerError,
 				response.MsgInternalServer,
 			)
+
 		}
 
 		return
 	}
-
-	log.Println("Ticket scanned successfully")
 
 	response.Success(
 		w,

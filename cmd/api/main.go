@@ -47,7 +47,7 @@ func main() {
 	// Services
 	eventService := service.NewEventService(eventRepo)
 	ticketTypeService := service.NewTicketTypeService(ticketTypeRepo)
-	ticketService := service.NewTicketService(ticketRepo, kafka)
+	ticketService := service.NewTicketService(ticketRepo, kafka, redis)
 
 	// Handlers
 	eventHandler := handler.NewEventHandler(eventService)

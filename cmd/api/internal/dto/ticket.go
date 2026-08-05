@@ -64,4 +64,23 @@ type TicketDetailResponse struct {
 
 type ScanTicketRequest struct {
 	TicketID string `json:"ticket_id"`
+	ExpTime  int64  `json:"exp_time"`
+	HMAC     string `json:"hmac"`
+}
+
+type TicketQRPayload struct {
+	TicketID string `json:"ticket_id"`
+	ExpTime  int64  `json:"exp_time"`
+	HMAC     string `json:"hmac"`
+}
+
+type TicketCache struct {
+	EventType    string    `json:"event_type"`
+	TicketID     string    `json:"ticket_id"`
+	QrCode       string    `json:"qrcode"`
+	EventID      string    `json:"event_id"`
+	BuyerID      string    `json:"buyer_id"`
+	EventOwnerID string    `json:"event_owner_id"`
+	Status       string    `json:"status"`
+	CreatedAt    time.Time `json:"created_at"`
 }
