@@ -179,6 +179,35 @@ func (h *EventHandler) GetEventDetails(
 		mapper.ToEventDetailsResponse(event),
 	)
 }
+func (h *EventHandler) GetAllByUserId(w http.ResponseWriter, r *http.Request) {
+	userId, err := uuid.Parse(middleware.UserID(r.Context()))
+	if err != nil {
+		response.Error(
+			w,
+			http.StatusInternalServerError,
+			response.MsgInternalServer,
+		)
+		return
+	}
+	events, err := h.service.GetByUserID(r.Context(), userId)
+	if err != nil {
+		response.Error(
+			w,
+			http.StatusInternalServerError,
+			response.MsgInternalServer,
+		)
+
+		log.Print(err.Error())
+		return
+	}
+
+	response.Success(
+		w,
+		http.StatusOK,
+		response.MsgEventsFetched,
+		mapper.ToEventResponses(events),
+	)
+}
 
 func (h *EventHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	events, err := h.service.GetAll(r.Context())

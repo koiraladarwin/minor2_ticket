@@ -55,6 +55,10 @@ func main() {
 	ticketHandler := handler.NewTicketHandler(ticketService)
 
 	// Event Routes
+	r.Handle(
+		"/events/me",
+		authMiddleware.RequireAuth(http.HandlerFunc(eventHandler.GetAllByUserId)),
+	).Methods(http.MethodGet)
 
 	r.Handle(
 		"/events",
@@ -131,7 +135,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Port,
-		Handler: r,
+		Handler: middleware.Cors(r),
 	}
 
 	log.Printf("Server listening on :%s", cfg.Port)

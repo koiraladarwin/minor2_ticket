@@ -15,6 +15,7 @@ var ErrEventNotFound = errors.New("event not found")
 type EventRepository interface {
 	Create(ctx context.Context, event *models.Event) error
 	GetByIDAndUserID(ctx context.Context, id uuid.UUID, userId uuid.UUID) (*models.Event, error)
+	GetByUserID(ctx context.Context, userId uuid.UUID) ([]models.Event, error)
 	GetAll(ctx context.Context) ([]models.Event, error)
 	GetEventDetails(ctx context.Context, id uuid.UUID, userId uuid.UUID) (*models.EventDetails, error)
 	Update(ctx context.Context, event *models.Event) error
@@ -74,6 +75,69 @@ func (r *eventRepository) Create(ctx context.Context, event *models.Event) error
 		&event.CreatedAt,
 		&event.UpdatedAt,
 	)
+}
+func (r *eventRepository) GetByUserID(ctx context.Context, userId uuid.UUID) ([]models.Event, error) {
+	query := `
+	SELECT
+		id,
+		title,
+		description,
+		venue,
+		banner_url,
+		event_start_at,
+		event_end_at,
+		ticket_sale_start_at,
+		ticket_sale_end_at,
+		capacity,
+		status,
+		created_by,
+		created_at,
+		updated_at
+	FROM events
+	WHERE created_by = $1
+	ORDER BY event_start_at ASC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []models.Event
+
+	for rows.Next() {
+		var event models.Event
+
+		err := rows.Scan(
+			&event.ID,
+			&event.Title,
+			&event.Description,
+			&event.Venue,
+			&event.BannerURL,
+			&event.EventStartAt,
+			&event.EventEndAt,
+			&event.TicketSaleStartAt,
+			&event.TicketSaleEndAt,
+			&event.Capacity,
+			&event.Status,
+			&event.CreatedBy,
+			&event.CreatedAt,
+			&event.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		events = append(events, event)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return events, nil
+
 }
 
 func (r *eventRepository) GetByIDAndUserID(ctx context.Context, id uuid.UUID, userId uuid.UUID) (*models.Event, error) {
