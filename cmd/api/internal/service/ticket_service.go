@@ -29,4 +29,11 @@ type TicketService interface {
 		ctx context.Context,
 		userID uuid.UUID,
 	) ([]models.TicketDetail, error)
+
+	//Scan ticket of a user
+	ScanTicket(
+		ctx context.Context,
+		ticketID string,
+		scannedBy string,
+	) error
 }

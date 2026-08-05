@@ -61,3 +61,7 @@ type TicketDetailResponse struct {
 		Price float64   `json:"price"`
 	} `json:"ticket_type"`
 }
+
+type ScanTicketRequest struct {
+	TicketID string `json:"ticket_id"`
+}

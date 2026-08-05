@@ -11,6 +11,7 @@ import (
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/handler"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/kafka"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/middleware"
+	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/redis"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/repository"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/service"
 )
@@ -24,7 +25,7 @@ func main() {
 	}
 	defer db.Close()
 	kafka := kafka.NewProducer()
-
+	redis := redis.InitRedis()
 	authMiddleware, err := middleware.NewAuthMiddleware(cfg.PublicKeyPath)
 	if err != nil {
 		log.Fatal(err)
@@ -41,7 +42,7 @@ func main() {
 	// Repositories
 	eventRepo := repository.NewEventRepository(db)
 	ticketTypeRepo := repository.NewTicketTypeRepository(db, kafka)
-	ticketRepo := repository.NewTicketRepository(db)
+	ticketRepo := repository.NewTicketRepository(db, redis)
 
 	// Services
 	eventService := service.NewEventService(eventRepo)
@@ -131,6 +132,11 @@ func main() {
 		"/me/tickets",
 		authMiddleware.RequireAuth(http.HandlerFunc(ticketHandler.GetMyTickets)),
 	).Methods(http.MethodGet)
+
+	r.Handle(
+		"/ticket/scan",
+		authMiddleware.RequireAuth(http.HandlerFunc(ticketHandler.ScanTicket)),
+	).Methods(http.MethodPost)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Port,

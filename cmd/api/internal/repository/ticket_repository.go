@@ -29,4 +29,11 @@ type TicketRepository interface {
 		id uuid.UUID,
 		userID uuid.UUID,
 	) (*models.TicketDetail, error)
+
+	//ScanTicket
+	ScanTicket(
+		ctx context.Context,
+		ticketID string,
+		scannedBy string,
+	) error
 }

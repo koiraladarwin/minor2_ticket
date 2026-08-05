@@ -3,17 +3,24 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 
+	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/kafka"
 	"github.com/koiraladarwin/minor2_ticket/cmd/api/internal/models"
 )
 
 var (
+	TicketActive         = "ACTIVE"
+	TicketUsed           = "USED"
+	TicketCancelled      = "CANCELLED"
 	ErrTicketNotFound    = errors.New("ticket not found")
+	ErrTicketAlreadyUsed = errors.New("ticket already used")
 	ErrAlreadyPurchased  = errors.New("user already purchased ticket for this event")
 	ErrTicketSoldOut     = errors.New("ticket sold out")
 	ErrEventUnavailable  = errors.New("event unavailable")
@@ -21,12 +28,14 @@ var (
 )
 
 type ticketRepository struct {
-	db *sql.DB
+	db    *sql.DB
+	redis *redis.Client
 }
 
-func NewTicketRepository(db *sql.DB) TicketRepository {
+func NewTicketRepository(db *sql.DB, redis *redis.Client) TicketRepository {
 	return &ticketRepository{
-		db: db,
+		db:    db,
+		redis: redis,
 	}
 }
 
@@ -453,4 +462,61 @@ func (r *ticketRepository) GetByIDAndUserID(
 	}
 
 	return &ticket, nil
+}
+
+func (r *ticketRepository) ScanTicket(
+	ctx context.Context,
+	ticketID string,
+	scannedBy string,
+) error {
+
+	// Get ticket from Redis
+	data, err := r.redis.Get(
+		ctx,
+		"ticket:"+ticketID,
+	).Result()
+
+	if err == redis.Nil {
+		return ErrTicketNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	var ticket kafka.TicketCache
+
+	err = json.Unmarshal(
+		[]byte(data),
+		&ticket,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	// Check status
+	if ticket.Status == TicketUsed {
+		return ErrTicketAlreadyUsed
+	}
+
+	// Update cache status
+	ticket.Status = TicketUsed
+
+	updated, err := json.Marshal(ticket)
+	if err != nil {
+		return err
+	}
+
+	err = r.redis.Set(
+		ctx,
+		"ticket:"+ticketID,
+		updated,
+		0,
+	).Err()
+
+	if err != nil {
+		return err
+	}
+	return nil
 }

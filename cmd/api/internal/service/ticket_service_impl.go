@@ -83,6 +83,31 @@ func (s *ticketService) publishTicketBought(
 		id.String(),
 		ticket.Event.CreatedBy.String(),
 		ticket.Status,
+		ticket.QRCode,
+	)
+
+	return s.kafka.Publish(
+		ctx,
+		kafka.TopicTicketEvents,
+		event,
+	)
+
+}
+
+func (s *ticketService) ScanTicket(
+	ctx context.Context,
+	ticketID string,
+	scannedBy string,
+) error {
+	err := s.repo.ScanTicket(ctx, ticketID, scannedBy)
+	if err != nil {
+		return err
+	}
+
+	event := kafka.NewTicketCheckedInEvent(
+		ticketID,
+		ticketID,
+		scannedBy,
 	)
 
 	return s.kafka.Publish(

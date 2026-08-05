@@ -13,6 +13,7 @@ const (
 type TicketCreatedEvent struct {
 	EventType    string    `json:"event_type"`
 	TicketID     string    `json:"ticket_id"`
+	QrCode       string    `json:"qrcode"`
 	EventID      string    `json:"event_id"`
 	BuyerID      string    `json:"buyer_id"`
 	EventOwnerID string    `json:"event_owner_id"`
@@ -42,12 +43,14 @@ func NewTicketCreatedEvent(
 	buyerID string,
 	eventOwnerID string,
 	status string,
+	qrcode string,
 ) TicketCreatedEvent {
 
 	return TicketCreatedEvent{
 		EventType:    EventTicketCreated,
 		TicketID:     ticketID,
 		EventID:      eventID,
+		QrCode:       qrcode,
 		BuyerID:      buyerID,
 		EventOwnerID: eventOwnerID,
 		Status:       status,

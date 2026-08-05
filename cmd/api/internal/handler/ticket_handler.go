@@ -212,3 +212,115 @@ func (h *TicketHandler) GetMyTickets(
 		mapper.ToTicketDetailResponseList(tickets),
 	)
 }
+func (h *TicketHandler) ScanTicket(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+
+	log.Println("ScanTicket handler started")
+
+	var req dto.ScanTicketRequest
+
+	log.Println("Decoding request body")
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+
+		log.Println("Failed to decode request body:", err)
+
+		response.Error(
+			w,
+			http.StatusBadRequest,
+			response.MsgInvalidRequestBody,
+		)
+		return
+	}
+
+	log.Println("Request decoded successfully")
+	log.Println("Ticket ID received:", req.TicketID)
+
+	if req.TicketID == "" {
+
+		log.Println("Ticket ID is empty")
+
+		response.Error(
+			w,
+			http.StatusBadRequest,
+			response.MsgInvalidTicketID,
+		)
+		return
+	}
+
+	log.Println("Getting scanner user from context")
+
+	scannedBy := middleware.UserID(r.Context())
+
+	if scannedBy == "" {
+
+		log.Println("Scanner user ID missing from context")
+
+		response.Error(
+			w,
+			http.StatusUnauthorized,
+			response.MsgUnauthorized,
+		)
+		return
+	}
+
+	log.Println("Scanner ID:", scannedBy)
+	log.Println("Calling service ScanTicket")
+
+	err := h.service.ScanTicket(
+		r.Context(),
+		req.TicketID,
+		scannedBy,
+	)
+
+	if err != nil {
+
+		log.Println("ScanTicket service returned error:", err)
+
+		switch {
+
+		case errors.Is(err, repository.ErrTicketNotFound):
+
+			log.Println("Ticket not found")
+
+			response.Error(
+				w,
+				http.StatusNotFound,
+				response.MsgTicketNotFound,
+			)
+
+		case errors.Is(err, repository.ErrTicketAlreadyUsed):
+
+			log.Println("Ticket already used")
+
+			response.Error(
+				w,
+				http.StatusConflict,
+				err.Error(),
+			)
+
+		default:
+
+			log.Println("Internal error:", err)
+
+			response.Error(
+				w,
+				http.StatusInternalServerError,
+				response.MsgInternalServer,
+			)
+		}
+
+		return
+	}
+
+	log.Println("Ticket scanned successfully")
+
+	response.Success(
+		w,
+		http.StatusOK,
+		"Ticket scanned successfully",
+		nil,
+	)
+}
