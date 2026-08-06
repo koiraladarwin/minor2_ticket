@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log"
 
 	"github.com/google/uuid"
 
@@ -198,6 +199,7 @@ func (r *eventRepository) GetEventDetails(
 	userId uuid.UUID,
 ) (*models.EventDetails, error) {
 
+	log.Print("got here")
 	query := `
 	SELECT
 		e.id,
@@ -226,13 +228,14 @@ func (r *eventRepository) GetEventDetails(
 	LEFT JOIN ticket_types tt
 	ON e.id = tt.event_id
 
-	WHERE e.id = $1
-	AND e.created_by = $2;
+	WHERE e.id = $1;
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, id, userId)
+	rows, err := r.db.QueryContext(ctx, query, id)
 
+	log.Print("got here 1")
 	if err != nil {
+		log.Print(err.Error())
 		return nil, err
 	}
 
@@ -279,6 +282,7 @@ func (r *eventRepository) GetEventDetails(
 		)
 
 		if err != nil {
+			log.Print(err.Error())
 			return nil, err
 		}
 
@@ -316,6 +320,7 @@ func (r *eventRepository) GetEventDetails(
 		}
 	}
 
+	log.Print("got here3")
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}

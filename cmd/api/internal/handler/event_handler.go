@@ -151,7 +151,7 @@ func (h *EventHandler) GetEventDetails(
 	if err != nil {
 
 		if errors.Is(err, repository.ErrEventNotFound) {
-
+			log.Print(err.Error())
 			response.Error(
 				w,
 				http.StatusNotFound,
